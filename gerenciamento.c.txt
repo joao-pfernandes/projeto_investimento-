@@ -1,0 +1,120 @@
+#include <stdio.h>
+#include <string.h>
+#include "gerenciamento.h"
+#include "calculos.h"
+
+void preencherDados(InformacaoFinanceira *info) {
+    printf("Insira data de aplicação (dd/mm/aaaa): ");
+    fgets(info->dataAplicacao, 11, stdin);
+    info->dataAplicacao[strcspn(info->dataAplicacao, "\n")] = 0;
+
+    printf("Insira data de vencimento (dd/mm/aaaa): ");
+    fgets(info->dataVencimento, 11, stdin);
+    info->dataVencimento[strcspn(info->dataVencimento, "\n")] = 0;
+
+    printf("Insira valor aplicado: ");
+    scanf("%f", &info->valorAplicado);
+    getchar();
+
+    printf("Escolha o tipo de investimento (0 - Prefixado, 1 - IPCA+, 2 - Selic, 3 - CDI): ");
+    int tipo;
+    scanf("%d", &tipo);
+    getchar();
+    info->tipo = (TipoInvestimento)tipo;
+
+    if (info->tipo == IPCA_MAIS) {
+        preencherTaxasMensais(info);
+    } else {
+        printf("Insira taxa de juros (em %%): ");
+        scanf("%f", &info->taxaJuros);
+        getchar();
+    }
+
+    printf("Insira nome: ");
+    fgets(info->nome, 50, stdin);
+    info->nome[strcspn(info->nome, "\n")] = 0;
+
+    strcpy(info->imposto, "IR");
+}
+
+    printf("Insira nome: ");
+    fgets(info->nome, 50, stdin);
+    info->nome[strcspn(info->nome, "\n")] = 0;
+
+    strcpy(info->imposto, "IR");
+}
+void exibirTabela(InformacaoFinanceira *infos, int total) {
+    printf("\n%-15s %-15s %-12s %-20s\n", "Data Aplic.", "Valor Aplic.", "Tipo", "Nome");
+    printf("---------------------------------------------------------------------\n");
+    for (int i = 0; i < total; i++) {
+        printf("%-15s R$ %-10.2f %-12s %-20s\n",
+               infos[i].dataAplicacao, infos[i].valorAplicado,
+               tipoInvestimentoToString(infos[i].tipo), infos[i].nome);}
+
+void removerInvestimento(InformacaoFinanceira *infos, int *total) {
+    if (*total == 0) {
+        printf("Nenhum investimento cadastrado!\n");
+        return;
+    }
+
+    int indice;
+    printf("Digite o índice do investimento a ser removido (0 a %d): ", *total - 1);
+    scanf("%d", &indice);
+
+    if (indice < 0 || indice >= *total) {
+        printf("Índice inválido!\n");
+        return;
+    }
+
+    for (int i = indice; i < *total - 1; i++) {
+        infos[i] = infos[i + 1];
+    }
+
+    (*total)--;
+    printf("Investimento removido com sucesso!\n");
+}
+
+void atualizarInvestimento(InformacaoFinanceira *info) {
+    int mesesCorridos = calcularMesesEntreDatas(info->dataAplicacao, dataAtual);
+
+    if (info->tipo == IPCA_MAIS) {
+        // Cálculo iterativo para IPCA+
+        info->valorBruto = info->valorAplicado;
+        for (int i = 0; i < mesesCorridos && i < info->totalMeses; i++) {
+            float taxaMensal = info->taxasMensais[i] / 100.0;
+            info->valorBruto *= (1 + taxaMensal);
+        }
+    } else {
+        // Cálculo padrão para outros tipos de investimento
+        int diasCorridos = converterDataParaDias(dataAtual) - converterDataParaDias(info->dataAplicacao);
+        float taxaDiaria = info->taxaJuros / 100.0 / 365.0;
+        info->valorBruto = info->valorAplicado * pow(1 + taxaDiaria, diasCorridos);
+    }
+
+    // Cálculo do imposto
+    float aliquota;
+    int diasCorridos = converterDataParaDias(dataAtual) - converterDataParaDias(info->dataAplicacao);
+    if (diasCorridos <= 180) {
+        aliquota = 0.225;
+    } else if (diasCorridos <= 360) {
+        aliquota = 0.20;
+    } else if (diasCorridos <= 720) {
+        aliquota = 0.175;
+    } else {
+        aliquota = 0.15;
+    }
+
+    float imposto = info->valorBruto * aliquota;
+    info->valorLiquido = info->valorBruto - imposto;
+}
+
+void preencherTaxasMensais(InformacaoFinanceira *info) {
+    if (info->tipo == IPCA_MAIS) {
+        printf("Insira o histórico de juros mensais (separados por espaço): ");
+        info->totalMeses = 0;
+        while (scanf("%f", &info->taxasMensais[info->totalMeses]) == 1) {
+            info->totalMeses++;
+        }
+        getchar(); // Limpar buffer
+    }
+}

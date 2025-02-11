@@ -1,0 +1,28 @@
+#ifndef INVESTIMENTO_H
+#define INVESTIMENTO_H
+
+#define MAX_ENTRADAS 100
+#define MAX_MESES 120 // Máximo de 10 anos de histórico
+
+typedef enum {
+    PREFIXADO,
+    IPCA_MAIS,
+    SELIC,
+    CDI
+} TipoInvestimento;
+
+typedef struct {
+    char dataAplicacao[11];
+    char dataVencimento[11];
+    float valorAplicado;
+    float taxaJuros; // Taxa fixa (para outros tipos de investimento)
+    TipoInvestimento tipo;
+    char nome[50];
+    char imposto[10];
+    float valorBruto;
+    float valorLiquido;
+    float taxasMensais[MAX_MESES]; // Taxas de juros mensais (para IPCA+)
+    int totalMeses; // Total de meses com taxas definidas
+} InformacaoFinanceira;
+
+#endif

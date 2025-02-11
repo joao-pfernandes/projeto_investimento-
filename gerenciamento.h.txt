@@ -1,0 +1,14 @@
+#ifndef GERENCIAMENTO_H
+#define GERENCIAMENTO_H
+
+#include "investimento.h"
+
+// Funções de gerenciamento
+void preencherDados(InformacaoFinanceira *info);
+void exibirTabela(InformacaoFinanceira *infos, int total);
+void removerInvestimento(InformacaoFinanceira *infos, int *total);
+void atualizarDadosInvestimento(InformacaoFinanceira *infos, int total);
+float calcularValorBrutoTotal(InformacaoFinanceira *infos, int total);
+float calcularValorLiquidoTotal(InformacaoFinanceira *infos, int total);
+
+#endif

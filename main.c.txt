@@ -1,0 +1,57 @@
+#include <stdio.h>
+#include "gerenciamento.h"
+#include "calculos.h"
+
+void exibirMenu() {
+    printf("\n===== MENU PRINCIPAL =====\n");
+    printf("1. Adicionar investimento\n");
+    printf("2. Listar investimentos\n");
+    printf("3. Remover investimento\n");
+    printf("4. Atualizar investimento\n");
+    printf("5. Calcular totais\n");
+    printf("6. Sair\n");
+    printf("Escolha uma opção: ");
+}
+
+int main() {
+    InformacaoFinanceira entradas[MAX_ENTRADAS];
+    int totalEntradas = 0;
+    int opcao;
+
+    do {
+        exibirMenu();
+        scanf("%d", &opcao);
+        getchar(); // Limpar buffer
+
+        switch (opcao) {
+            case 1:
+                if (totalEntradas < MAX_ENTRADAS) {
+                    preencherDados(&entradas[totalEntradas]);
+                    totalEntradas++;
+                } else {
+                    printf("Limite de investimentos atingido!\n");
+                }
+                break;
+            case 2:
+                exibirTabela(entradas, totalEntradas);
+                break;
+            case 3:
+                removerInvestimento(entradas, &totalEntradas);
+                break;
+            case 4:
+                // Implementar atualização
+                break;
+            case 5:
+                printf("\nValor Bruto Total: R$ %.2f\n", calcularValorBrutoTotal(entradas, totalEntradas));
+                printf("Valor Líquido Total: R$ %.2f\n", calcularValorLiquidoTotal(entradas, totalEntradas));
+                break;
+            case 6:
+                printf("Saindo...\n");
+                break;
+            default:
+                printf("Opção inválida!\n");
+        }
+    } while (opcao != 6);
+
+    return 0;
+}

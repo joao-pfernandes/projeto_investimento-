@@ -1,0 +1,79 @@
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include <time.h>
+#include "calculos.h"
+#include "investimento.h"
+
+char dataAtual[11] = "27/01/2025";
+
+int validarData(const char *data) {
+    int dia, mes, ano;
+    if (sscanf(data, "%d/%d/%d", &dia, &mes, &ano) != 3) return 0;
+    if (dia < 1 || dia > 31 || mes < 1 || mes > 12 || ano < 1900) return 0;
+    return 1;
+}
+
+int converterDataParaDias(const char *data) {
+    int dia, mes, ano;
+    sscanf(data, "%d/%d/%d", &dia, &mes, &ano);
+    struct tm tm_data = {0, 0, 0, dia, mes - 1, ano - 1900};
+    time_t t_data = mktime(&tm_data);
+    time_t t_atual = time(NULL);
+    return (int)difftime(t_data, t_atual) / (60 * 60 * 24);
+}
+
+void atualizarInvestimento(InformacaoFinanceira *info) {
+    int mesesCorridos = calcularMesesEntreDatas(info->dataAplicacao, dataAtual);
+
+    if (info->tipo == IPCA_MAIS) {
+        // Cálculo iterativo para IPCA+
+        info->valorBruto = info->valorAplicado;
+        for (int i = 0; i < mesesCorridos && i < info->totalMeses; i++) {
+            float taxaMensal = info->taxasMensais[i] / 100.0;
+            info->valorBruto *= (1 + taxaMensal);
+        }
+    } else {
+        // Cálculo padrão para outros tipos de investimento
+        int diasCorridos = converterDataParaDias(dataAtual) - converterDataParaDias(info->dataAplicacao);
+        float taxaDiaria = info->taxaJuros / 100.0 / 365.0;
+        info->valorBruto = info->valorAplicado * pow(1 + taxaDiaria, diasCorridos);
+    }
+
+    // Cálculo do imposto
+    float aliquota;
+    int diasCorridos = converterDataParaDias(dataAtual) - converterDataParaDias(info->dataAplicacao);
+    if (diasCorridos <= 180) {
+        aliquota = 0.225;
+    } else if (diasCorridos <= 360) {
+        aliquota = 0.20;
+    } else if (diasCorridos <= 720) {
+        aliquota = 0.175;
+    } else {
+        aliquota = 0.15;
+    }
+
+    float imposto = info->valorBruto * aliquota;
+    info->valorLiquido = info->valorBruto - imposto;
+}
+
+void preencherTaxasMensais(InformacaoFinanceira *info) {
+    if (info->tipo == IPCA_MAIS) {
+        printf("Insira o histórico de juros mensais (separados por espaço): ");
+        info->totalMeses = 0;
+        while (scanf("%f", &info->taxasMensais[info->totalMeses]) == 1) {
+            info->totalMeses++;
+        }
+        getchar(); // Limpar buffer
+    }
+}
+
+int calcularMesesEntreDatas(const char *dataInicio, const char *dataFim) {
+    int diaInicio, mesInicio, anoInicio;
+    int diaFim, mesFim, anoFim;
+
+    sscanf(dataInicio, "%d/%d/%d", &diaInicio, &mesInicio, &anoInicio);
+    sscanf(dataFim, "%d/%d/%d", &diaFim, &mesFim, &anoFim);
+
+    return (anoFim - anoInicio) * 12 + (mesFim - mesInicio);
+}
