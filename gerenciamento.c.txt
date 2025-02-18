@@ -1,7 +1,131 @@
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include "gerenciamento.h"
 #include "calculos.h"
+
+#define ARQUIVO_DADOS "investimentos.dat"
+#define MAX_INVESTIMENTOS 100
+
+void preencherDados(InformacaoFinanceira *info);
+void exibirTabela(InformacaoFinanceira *infos, int total);
+void removerInvestimento(InformacaoFinanceira *infos, int *total);
+void atualizarInvestimento(InformacaoFinanceira *info);
+void preencherTaxasMensais(InformacaoFinanceira *info);
+void salvarDados(InformacaoFinanceira *infos, int total);
+int carregarDados(InformacaoFinanceira *infos);
+
+int main() {
+    InformacaoFinanceira investimentos[MAX_INVESTIMENTOS];
+    int totalInvestimentos = 0;
+    int opcao;
+
+    totalInvestimentos = carregarDados(investimentos);
+    if (totalInvestimentos == -1) {
+        printf("Erro ao carregar os dados. Iniciando com lista vazia.\n");
+        totalInvestimentos = 0;
+    } else {
+        printf("Dados carregados com sucesso!\n");
+    }
+
+    do {
+        printf("\n--- Menu de Gerenciamento de Investimentos ---\n");
+        printf("1. Adicionar Investimento\n");
+        printf("2. Ver Investimentos\n");
+        printf("3. Editar Investimento\n");
+        printf("4. Remover Investimento\n");
+        printf("5. Sair\n");
+        printf("Escolha uma opção: ");
+        scanf("%d", &opcao);
+        getchar();
+
+        switch (opcao) {
+            case 1:
+                if (totalInvestimentos < MAX_INVESTIMENTOS) {
+                    preencherDados(&investimentos[totalInvestimentos]);
+                    totalInvestimentos++;
+                    printf("Investimento adicionado com sucesso!\n");
+                } else {
+                    printf("Limite de investimentos atingido!\n");
+                }
+                break;
+
+            case 2:
+                exibirTabela(investimentos, totalInvestimentos);
+                break;
+
+            case 3:
+                if (totalInvestimentos == 0) {
+                    printf("Nenhum investimento cadastrado!\n");
+                } else {
+                    int indice;
+                    printf("Digite o índice do investimento a ser editado (0 a %d): ", totalInvestimentos - 1);
+                    scanf("%d", &indice);
+                    getchar();
+
+                    if (indice >= 0 && indice < totalInvestimentos) {
+                        preencherDados(&investimentos[indice]);
+                        printf("Investimento editado com sucesso!\n");
+                    } else {
+                        printf("Índice inválido!\n");
+                    }
+                }
+                break;
+
+            case 4:
+                removerInvestimento(investimentos, &totalInvestimentos);
+                break;
+
+            case 5:
+                salvarDados(investimentos, totalInvestimentos);
+                printf("Dados salvos. Saindo...\n");
+                break;
+
+            default:
+                printf("Opção inválida! Tente novamente.\n");
+        }
+    } while (opcao != 5);
+
+    return 0;
+}
+
+void salvarDados(InformacaoFinanceira *infos, int total) {
+    FILE *arquivo = fopen(ARQUIVO_DADOS, "wb");
+    if (arquivo == NULL) {
+        printf("Erro ao salvar os dados!\n");
+        return;
+    }
+
+    fwrite(&total, sizeof(int), 1, arquivo);
+    fwrite(infos, sizeof(InformacaoFinanceira), total, arquivo);
+
+    fclose(arquivo);
+    printf("Dados salvos com sucesso!\n");
+}
+
+int carregarDados(InformacaoFinanceira *infos) {
+    FILE *arquivo = fopen(ARQUIVO_DADOS, "rb");
+    if (arquivo == NULL) {
+        printf("Arquivo de dados não encontrado. Criando um novo.\n");
+        return 0;
+    }
+
+    int total;
+    if (fread(&total, sizeof(int), 1, arquivo) != 1) {
+        printf("Erro ao ler o número de investimentos.\n");
+        fclose(arquivo);
+        return -1;
+    }
+
+    if (fread(infos, sizeof(InformacaoFinanceira), total, arquivo) != total) {
+        printf("Erro ao carregar os dados dos investimentos.\n");
+        fclose(arquivo);
+        return -1;
+    }
+
+    fclose(arquivo);
+    return total;
+}
 
 void preencherDados(InformacaoFinanceira *info) {
     printf("Insira data de aplicação (dd/mm/aaaa): ");
@@ -13,12 +137,18 @@ void preencherDados(InformacaoFinanceira *info) {
     info->dataVencimento[strcspn(info->dataVencimento, "\n")] = 0;
 
     printf("Insira valor aplicado: ");
-    scanf("%f", &info->valorAplicado);
+    while (scanf("%f", &info->valorAplicado) != 1 || info->valorAplicado <= 0) {
+        printf("Valor inválido! Insira novamente: ");
+        while (getchar() != '\n');
+    }
     getchar();
 
     printf("Escolha o tipo de investimento (0 - Prefixado, 1 - IPCA+, 2 - Selic, 3 - CDI): ");
     int tipo;
-    scanf("%d", &tipo);
+    while (scanf("%d", &tipo) != 1 || tipo < 0 || tipo > 3) {
+        printf("Opção inválida! Insira novamente: ");
+        while (getchar() != '\n');
+    }
     getchar();
     info->tipo = (TipoInvestimento)tipo;
 
@@ -26,7 +156,10 @@ void preencherDados(InformacaoFinanceira *info) {
         preencherTaxasMensais(info);
     } else {
         printf("Insira taxa de juros (em %%): ");
-        scanf("%f", &info->taxaJuros);
+        while (scanf("%f", &info->taxaJuros) != 1 || info->taxaJuros < 0) {
+            printf("Taxa inválida! Insira novamente: ");
+            while (getchar() != '\n');
+        }
         getchar();
     }
 
@@ -37,19 +170,20 @@ void preencherDados(InformacaoFinanceira *info) {
     strcpy(info->imposto, "IR");
 }
 
-    printf("Insira nome: ");
-    fgets(info->nome, 50, stdin);
-    info->nome[strcspn(info->nome, "\n")] = 0;
-
-    strcpy(info->imposto, "IR");
-}
 void exibirTabela(InformacaoFinanceira *infos, int total) {
+    if (total == 0) {
+        printf("Nenhum investimento cadastrado!\n");
+        return;
+    }
+
     printf("\n%-15s %-15s %-12s %-20s\n", "Data Aplic.", "Valor Aplic.", "Tipo", "Nome");
     printf("---------------------------------------------------------------------\n");
     for (int i = 0; i < total; i++) {
         printf("%-15s R$ %-10.2f %-12s %-20s\n",
                infos[i].dataAplicacao, infos[i].valorAplicado,
-               tipoInvestimentoToString(infos[i].tipo), infos[i].nome);}
+               tipoInvestimentoToString(infos[i].tipo), infos[i].nome);
+    }
+}
 
 void removerInvestimento(InformacaoFinanceira *infos, int *total) {
     if (*total == 0) {
@@ -59,11 +193,9 @@ void removerInvestimento(InformacaoFinanceira *infos, int *total) {
 
     int indice;
     printf("Digite o índice do investimento a ser removido (0 a %d): ", *total - 1);
-    scanf("%d", &indice);
-
-    if (indice < 0 || indice >= *total) {
-        printf("Índice inválido!\n");
-        return;
+    while (scanf("%d", &indice) != 1 || indice < 0 || indice >= *total) {
+        printf("Índice inválido! Insira novamente: ");
+        while (getchar() != '\n');
     }
 
     for (int i = indice; i < *total - 1; i++) {
@@ -74,47 +206,13 @@ void removerInvestimento(InformacaoFinanceira *infos, int *total) {
     printf("Investimento removido com sucesso!\n");
 }
 
-void atualizarInvestimento(InformacaoFinanceira *info) {
-    int mesesCorridos = calcularMesesEntreDatas(info->dataAplicacao, dataAtual);
-
-    if (info->tipo == IPCA_MAIS) {
-        // Cálculo iterativo para IPCA+
-        info->valorBruto = info->valorAplicado;
-        for (int i = 0; i < mesesCorridos && i < info->totalMeses; i++) {
-            float taxaMensal = info->taxasMensais[i] / 100.0;
-            info->valorBruto *= (1 + taxaMensal);
-        }
-    } else {
-        // Cálculo padrão para outros tipos de investimento
-        int diasCorridos = converterDataParaDias(dataAtual) - converterDataParaDias(info->dataAplicacao);
-        float taxaDiaria = info->taxaJuros / 100.0 / 365.0;
-        info->valorBruto = info->valorAplicado * pow(1 + taxaDiaria, diasCorridos);
-    }
-
-    // Cálculo do imposto
-    float aliquota;
-    int diasCorridos = converterDataParaDias(dataAtual) - converterDataParaDias(info->dataAplicacao);
-    if (diasCorridos <= 180) {
-        aliquota = 0.225;
-    } else if (diasCorridos <= 360) {
-        aliquota = 0.20;
-    } else if (diasCorridos <= 720) {
-        aliquota = 0.175;
-    } else {
-        aliquota = 0.15;
-    }
-
-    float imposto = info->valorBruto * aliquota;
-    info->valorLiquido = info->valorBruto - imposto;
-}
-
 void preencherTaxasMensais(InformacaoFinanceira *info) {
     if (info->tipo == IPCA_MAIS) {
-        printf("Insira o histórico de juros mensais (separados por espaço): ");
+        printf("Insira o histórico de juros mensais (separados por espaço, finalize com -1): ");
         info->totalMeses = 0;
-        while (scanf("%f", &info->taxasMensais[info->totalMeses]) == 1) {
+        while (scanf("%f", &info->taxasMensais[info->totalMeses]) == 1 && info->taxasMensais[info->totalMeses] != -1) {
             info->totalMeses++;
         }
-        getchar(); // Limpar buffer
+        getchar();
     }
 }
